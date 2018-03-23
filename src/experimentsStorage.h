@@ -7,15 +7,16 @@
 #include <QJsonValue>
 #include <QMap>
 #include <QDate>
+#include "include/externals/nlohmann/json/json.hpp"
 
+using json = nlohmann::json;
 
 class ExperimentsStorage : public QObject
 {
     Q_OBJECT
 public:
     explicit ExperimentsStorage(QObject *parent = 0);
-    void setSettings(QJsonObject settings);
-    QJsonObject getSettings();
+    void setSettings(json * settingsJson);
     bool setPathSampleFolder(const QString & path);
     bool setPathCalibrationFolder(const QString & path);
     bool setPathTarFolder(const QString & path);
@@ -51,7 +52,7 @@ private:
     bool addJsonObjectExperimentParametr(QJsonObject * parameters, const QString & paramName, QJsonValue value, const QString & description, const QString & unit = "", double multiplier = 1);
 
 
-    static QJsonObject settings_;
+    static json * settingsJson_;
     static QString pathSampleFolder_;
     static QString pathCalibrationFolder_;
     static QString pathTarFolder_;

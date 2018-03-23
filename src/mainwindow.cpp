@@ -1,4 +1,6 @@
 #include "mainwindow.h"
+#include <iostream>
+#include <fstream>
 #include <QHBoxLayout>
 #include <QCloseEvent>
 #include <QTimer>
@@ -6,12 +8,13 @@
 #include <QJsonDocument>
 #include <QDebug>
 
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     readSettings();
     experimentsStorage = new ExperimentsStorage(this);
-    experimentsStorage->setSettings(settings_["Storage"].toObject());
+    experimentsStorage->setSettings(&settingsJson_["Storage"]);
     if (experimentsStorage->pathCalibrationFolder().isEmpty())
         experimentsStorage->setPathCalibrationFolder("/home/calorimeter/MCMIX/Amp");
     if (experimentsStorage->pathSampleFolder().isEmpty())
@@ -23,12 +26,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     viewExperiments = new ViewExperiments;
     experimentInfo =  new ExperimentInfo;
-    experimentInfo->setSettings(experimentInfoSettings_);
+    experimentInfo->setSettings(&settingsJson_["GUI"]["ExperimentInfo"]);
     resultsExperimentWidget = new ResultsExperimentWidget;
 
     fotoView = new FotoView;
-    fotoView->setSettings(fotoViewSettings_);
-    splitterInfoFotoExperiments = new QSplitter(Qt::Vertical, this);
+    fotoView->setSettings(&settingsJson_["GUI"]["FotoView"]);
+    splitterInfoFotoExperiments = new QSplitter(Qt::Vertical);
     splitterInfoFotoExperiments->addWidget(experimentInfo);
     splitterInfoFotoExperiments->addWidget(fotoView);
 
@@ -44,7 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     experimentWidget->hide();
 
 
-    splitterViewInfoExperiments = new QSplitter(this);
+    splitterViewInfoExperiments = new QSplitter(Qt::Horizontal);
     splitterViewInfoExperiments->addWidget(viewExperiments);
     splitterViewInfoExperiments->addWidget(experimentWidget);
 
@@ -73,10 +76,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(viewExperiments, &ViewExperiments::tarClicked,
             this, &MainWindow::tabTarIsVisible);
 
-    connect(fotoView, &FotoView::settingsChanged, this, &MainWindow::updateSettings);
-    connect(experimentInfo, &ExperimentInfo::settingsChanged, this, &MainWindow::updateSettings);
-
-
     showExperiments();
 }
 
@@ -88,68 +87,54 @@ MainWindow::~MainWindow()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     experimentsStorage->close();
-    QJsonObject storageSettings = settings_["Storage"].toObject();
-    storageSettings = experimentsStorage->getSettings();
-    settings_["Storage"] = storageSettings;
-
-
 
     writeSettings();
     event->accept();
 }
 
-void MainWindow::updateSettings(QJsonObject settings)
-{
-    if (sender() == fotoView){
-        fotoViewSettings_ = settings;
-    } else if(sender() == experimentInfo){
-        experimentInfoSettings_ = settings;
-    }
-
-}
-
 void MainWindow::readSettings()
 {
-    QFile jsonSettingsFile("settings/MCMIX.json");
-    if(jsonSettingsFile.exists()){
-        if(jsonSettingsFile.open(QIODevice::ReadOnly)){
-            settings_ = QJsonDocument::fromJson(jsonSettingsFile.readAll()).object();
-            QJsonObject mainWindow = settings_["GUI"].toObject()["MainWindow"].toObject();
-            QJsonObject mainWindowPosition = mainWindow["Position"].toObject();
-            if (mainWindow["maximized"].toBool()){
-                showMaximized();
-            } else {
-                resize(mainWindowPosition["width"].toInt(), mainWindowPosition["height"].toInt());
-                move(mainWindowPosition["x"].toInt(), mainWindowPosition["y"].toInt());
-            }
-            QString splitterViewInfo;
-            QString splitterInfoFoto;
-            splitterViewInfo = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["TreeExperiments"].toObject()["SplitterViewInfo"].toObject()["state"].toString();
-            splitterInfoFoto = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["TreeExperiments"].toObject()["SplitterInfoFoto"].toObject()["state"].toString();
-            splitterViewInfoTreeExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.toLatin1());
-            splitterInfoFotoTreeExperimentsSize_ = QByteArray::fromHex(splitterInfoFoto.toLatin1());
-            splitterViewInfo = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["AllExperiments"].toObject()["SplitterViewInfo"].toObject()["state"].toString();
-            splitterInfoFoto = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["AllExperiments"].toObject()["SplitterInfoFoto"].toObject()["state"].toString();
-            splitterViewInfoAllExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.toLatin1());
-            splitterInfoFotoAllExperimentsSize_ = QByteArray::fromHex(splitterInfoFoto.toLatin1());
-            splitterViewInfo = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["TarExperiments"].toObject()["SplitterViewInfo"].toObject()["state"].toString();
-            splitterViewInfoTarExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.toLatin1());
-
-            experimentInfoSettings_ = settings_["GUI"].toObject()["ExperimentInfo"].toObject();
-            fotoViewSettings_ = settings_["GUI"].toObject()["FotoView"].toObject();
-            jsonSettingsFile.close();
+    std::ifstream file("settings/MCMIX.json");
+    if(file.is_open()){
+        file >> settingsJson_;
+        file.close();
+        if (settingsJson_["/GUI/MainWindow/maximized"_json_pointer].is_boolean() ? static_cast<bool>(settingsJson_["/GUI/MainWindow/maximized"_json_pointer]) : false){
+            showMaximized();
+        } else {
+            resize(settingsJson_["/GUI/MainWindow/Position/width"_json_pointer].is_number() ? static_cast<unsigned int>(settingsJson_["/GUI/MainWindow/Position/width"_json_pointer]) : 1200,
+                settingsJson_["/GUI/MainWindow/Position/height"_json_pointer].is_number() ?static_cast<unsigned int>(settingsJson_["/GUI/MainWindow/Position/height"_json_pointer]) : 900);
+            move(settingsJson_["/GUI/MainWindow/Position/x"_json_pointer].is_number() ? static_cast<unsigned int>(settingsJson_["/GUI/MainWindow/Position/x"_json_pointer]) : 50,
+                settingsJson_["/GUI/MainWindow/Position/y"_json_pointer].is_number() ? static_cast<unsigned int>(settingsJson_["/GUI/MainWindow/Position/y"_json_pointer]) : 50);
         }
+        std::string splitterViewInfo;
+        std::string splitterInfoFoto;
+        splitterViewInfo = settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterViewInfo/state"_json_pointer].is_string()
+                ? settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterViewInfo/state"_json_pointer] : "";
+        splitterInfoFoto = settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterInfoFoto/state"_json_pointer].is_string()
+                ? settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterInfoFoto/state"_json_pointer] : "";
+        splitterViewInfoTreeExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.data());
+        splitterInfoFotoTreeExperimentsSize_ = QByteArray::fromHex(splitterInfoFoto.data());
+        splitterViewInfo = settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterViewInfo/state"_json_pointer].is_string()
+                ? settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterViewInfo/state"_json_pointer] : "";
+        splitterInfoFoto = settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterInfoFoto/state"_json_pointer].is_string()
+                ? settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterInfoFoto/state"_json_pointer] : "";
+        splitterViewInfoAllExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.data());
+        splitterInfoFotoAllExperimentsSize_ = QByteArray::fromHex(splitterInfoFoto.data());
+        splitterViewInfo = settingsJson_["/GUI/MainWindow/Tabs/TarExperiments/SplitterViewInfo/state"_json_pointer].is_string()
+                ? settingsJson_["/GUI/MainWindow/Tabs/TarExperiments/SplitterViewInfo/state"_json_pointer] : "";
+        splitterViewInfoTarExperimentsSize_ = QByteArray::fromHex(splitterViewInfo.data());
     }
+
 }
 
 void MainWindow::readGuiSettings()
 {
-    QString tabName = settings_["GUI"].toObject()["MainWindow"].toObject()["Tabs"].toObject()["lastOpened"].toString();
+    std::string tabName = settingsJson_["/GUI/MainWindow/Tabs/lastOpened"_json_pointer].is_string() ? settingsJson_["/GUI/MainWindow/Tabs/lastOpened"_json_pointer] : "Experiments";
     if(tabName == "AllExperiments"){
         viewExperiments->showTab(ViewExperiments::TabName::allExperiment);
     } else if(tabName == "Tar"){
         viewExperiments->showTab(ViewExperiments::TabName::tar);
-    } else {
+    } else if(tabName == "Experiments"){
         viewExperiments->showTab(ViewExperiments::TabName::experiment);
     }
 }
@@ -187,69 +172,33 @@ void MainWindow::writeSettings()
     if(!settingsDir.exists("settings"))
         settingsDir.mkdir("settings");
 
-    QJsonObject gui = settings_["GUI"].toObject();
-    QJsonObject mainWindow = gui["MainWindow"].toObject();
-    QJsonObject mainWindowPosition = mainWindow["Position"].toObject();
-    mainWindow["maximized"]=maximized;
+    settingsJson_["/GUI/MainWindow/maximized"_json_pointer]=maximized;
     if (!maximized){
-        mainWindowPosition["height"] = size().height();
-        mainWindowPosition["width"] = size().width();
-        mainWindowPosition["x"] = pos().x();
-        mainWindowPosition["y"] = pos().y();
+        settingsJson_["/GUI/MainWindow/Position/height"_json_pointer] = size().height();
+        settingsJson_["/GUI/MainWindow/Position/width"_json_pointer] = size().width();
+        settingsJson_["/GUI/MainWindow/Position/x"_json_pointer] = pos().x();
+        settingsJson_["/GUI/MainWindow/Position/y"_json_pointer] = pos().y();
     }
-    mainWindow["Position"] = mainWindowPosition;
 
-    QJsonObject tabs = mainWindow["Tabs"].toObject();
     if (currentTabShow == "Experiments"){
-        tabs["lastOpened"] = "Experiments";
+        settingsJson_["/GUI/MainWindow/Tabs/lastOpened"_json_pointer] = "Experiments";
     } else if (currentTabShow == "AllExperiments"){
-        tabs["lastOpened"] = "AllExperiments";
+        settingsJson_["/GUI/MainWindow/Tabs/lastOpened"_json_pointer] = "AllExperiments";
     } else if (currentTabShow == "Tar"){
-        tabs["lastOpened"] = "Tar";
-    }
-    QJsonObject splitterViewInfo;
-    QJsonObject splitterInfoFoto;
-    QJsonObject tabTreeExperiments = tabs["TreeExperiments"].toObject();
-    splitterViewInfo = tabTreeExperiments["SplitterViewInfo"].toObject();
-    splitterInfoFoto = tabTreeExperiments["SplitterInfoFoto"].toObject();
-    splitterViewInfo["state"]=QString(splitterViewInfoTreeExperimentsState.toHex());
-    splitterInfoFoto["state"]=QString(splitterInfoFotoTreeExperimentsState.toHex());
-    tabTreeExperiments["SplitterViewInfo"] = splitterViewInfo;
-    tabTreeExperiments["SplitterInfoFoto"] = splitterInfoFoto;
-
-    QJsonObject tabAllExperiments = tabs["AllExperiments"].toObject();
-    splitterViewInfo = tabAllExperiments["SplitterViewInfo"].toObject();
-    splitterInfoFoto = tabAllExperiments["SplitterInfoFoto"].toObject();
-    splitterViewInfo["state"]=QString(splitterViewInfoAllExperimentsState.toHex());
-    splitterInfoFoto["state"]=QString(splitterInfoFotoAllExperimentsState.toHex());
-    tabAllExperiments["SplitterViewInfo"] = splitterViewInfo;
-    tabAllExperiments["SplitterInfoFoto"] = splitterInfoFoto;
-
-    QJsonObject tabTarExperiments = tabs["TarExperiments"].toObject();
-    splitterViewInfo = tabTarExperiments["SplitterViewInfo"].toObject();
-    splitterViewInfo["state"]=QString(splitterViewInfoTarExperimentsState.toHex());
-    tabTarExperiments["SplitterViewInfo"] = splitterViewInfo;
-
-
-    gui.insert("ExperimentInfo", experimentInfoSettings_);
-    gui.insert("FotoView", fotoViewSettings_);
-
-
-    tabs["TreeExperiments"] = tabTreeExperiments;
-    tabs["AllExperiments"] = tabAllExperiments;
-    tabs["TarExperiments"] = tabTarExperiments;
-    mainWindow["Tabs"] = tabs;
-    gui["MainWindow"]=mainWindow;
-
-    settings_["GUI"]=gui;
-
-
-    QFile jsonSettingsFile("settings/MCMIX.json");
-    if(jsonSettingsFile.open(QIODevice::WriteOnly)){
-        jsonSettingsFile.write(QJsonDocument(settings_).toJson());
+        settingsJson_["/GUI/MainWindow/Tabs/lastOpened"_json_pointer] = "Tar";
     }
 
-    jsonSettingsFile.close();
+    settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterViewInfo/state"_json_pointer]=std::string(splitterViewInfoTreeExperimentsState.toHex());
+    settingsJson_["/GUI/MainWindow/Tabs/TreeExperiments/SplitterInfoFoto/state"_json_pointer]=std::string(splitterInfoFotoTreeExperimentsState.toHex());
+    settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterViewInfo/state"_json_pointer]=std::string(splitterViewInfoAllExperimentsState.toHex());
+    settingsJson_["/GUI/MainWindow/Tabs/AllExperiments/SplitterInfoFoto/state"_json_pointer]=std::string(splitterInfoFotoAllExperimentsState.toHex());
+    settingsJson_["/GUI/MainWindow/Tabs/TarExperiments/SplitterViewInfo/state"_json_pointer]=std::string(splitterViewInfoTarExperimentsState.toHex());
+
+    std::ofstream file("settings/MCMIX.json");
+    if(file.is_open()){
+        file << std::setw(4) << settingsJson_;
+        file.close();
+    }
 }
 
 void MainWindow::createMenu()

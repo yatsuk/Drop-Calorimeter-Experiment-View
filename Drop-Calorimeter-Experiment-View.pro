@@ -22,8 +22,31 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
+INCLUDEPATH = $$PWD/include
 
-SOURCES += main.cpp\
-        mainwindow.cpp
+SOURCES += \
+    src/ViewExperiments.cpp \
+    src/tarExperimentTable.cpp \
+    src/tableWidgetItemNumeric.cpp \
+    src/tableWidgetItemDate.cpp \
+    src/resultsExperimentWidget.cpp \
+    src/mainwindow.cpp \
+    src/main.cpp \
+    src/fotoView.cpp \
+    src/extractDataWidget.cpp \
+    src/experimentsStorage.cpp \
+    src/experimentInfo.cpp \
+    src/allExperimentsTable.cpp
 
-HEADERS  += mainwindow.h
+HEADERS  += \
+    src/ViewExperiments.h \
+    src/tarExperimentTable.h \
+    src/tableWidgetItemNumeric.h \
+    src/tableWidgetItemDate.h \
+    src/resultsExperimentWidget.h \
+    src/mainwindow.h \
+    src/fotoView.h \
+    src/extractDataWidget.h \
+    src/experimentsStorage.h \
+    src/experimentInfo.h \
+    src/allExperimentsTable.h

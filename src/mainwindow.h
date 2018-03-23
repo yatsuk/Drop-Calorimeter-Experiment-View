@@ -8,12 +8,14 @@
 #include <QAction>
 #include <QMenu>
 #include <QMenuBar>
-#include <QJsonObject>
+#include "include/externals/nlohmann/json/json.hpp"
 #include "ViewExperiments.h"
 #include "experimentsStorage.h"
 #include "experimentInfo.h"
 #include "fotoView.h"
 #include "resultsExperimentWidget.h"
+
+using json = nlohmann::json;
 
 class MainWindow : public QMainWindow
 {
@@ -27,9 +29,6 @@ signals:
 
 protected:
     void closeEvent(QCloseEvent *event);
-
-public slots:
-    void updateSettings(QJsonObject settings);
 
 private slots:
     void readGuiSettings();
@@ -69,9 +68,7 @@ private:
     QAction * exitAct;
     QAction * infoAmpulesAct;
 
-    QJsonObject settings_;
-    QJsonObject experimentInfoSettings_;
-    QJsonObject fotoViewSettings_;
+    json settingsJson_;
 };
 
 

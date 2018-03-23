@@ -11,7 +11,7 @@
 #include <QByteArray>
 #include <QDebug>
 
-QJsonObject ExperimentsStorage::settings_;
+json * ExperimentsStorage::settingsJson_;
 QString ExperimentsStorage::pathSampleFolder_;
 QString ExperimentsStorage::pathCalibrationFolder_;
 QString ExperimentsStorage::pathTarFolder_;
@@ -33,21 +33,17 @@ bool ExperimentsStorage::close()
     return true;
 }
 
-void ExperimentsStorage::setSettings(QJsonObject settings)
+void ExperimentsStorage::setSettings(json *settingsJson)
 {
-    settings_ = settings;
+    settingsJson_ = settingsJson;
     readSettings();
-}
-
-QJsonObject ExperimentsStorage::getSettings()
-{
-    return settings_;
 }
 
 bool ExperimentsStorage::setPathSampleFolder(const QString &path)
 {
     pathSampleFolder_ = path;
-    settings_["pathSampleFolder"] = path;
+    if(settingsJson_!=nullptr)
+        (*settingsJson_)["pathSampleFolder"] = path.toStdString();
 
     return true;
 }
@@ -55,7 +51,8 @@ bool ExperimentsStorage::setPathSampleFolder(const QString &path)
 bool ExperimentsStorage::setPathCalibrationFolder(const QString &path)
 {
     pathCalibrationFolder_ = path;
-    settings_["pathCalibrationFolder"] = path;
+    if(settingsJson_!=nullptr)
+        (*settingsJson_)["pathCalibrationFolder"] = path.toStdString();
 
     return true;
 }
@@ -63,7 +60,8 @@ bool ExperimentsStorage::setPathCalibrationFolder(const QString &path)
 bool ExperimentsStorage::setPathTarFolder(const QString &path)
 {
     pathTarFolder_ = path;
-    settings_["pathTarFolder"] = path;
+    if(settingsJson_!=nullptr)
+        (*settingsJson_)["pathTarFolder"] = path.toStdString();
 
     return true;
 }
@@ -71,7 +69,8 @@ bool ExperimentsStorage::setPathTarFolder(const QString &path)
 bool ExperimentsStorage::setPathMCMIXFolder(const QString & path)
 {
     pathMCMIXFolder_ = path;
-    settings_["pathMCMIXFolder"] = path;
+    if(settingsJson_!=nullptr)
+        (*settingsJson_)["pathMCMIXFolder"] = path.toStdString();
 
     return true;
 }
@@ -100,10 +99,15 @@ bool ExperimentsStorage::validateFolder(const QString & infoFilePath, const QStr
 
 void ExperimentsStorage::readSettings()
 {
-    pathCalibrationFolder_ = settings_["pathCalibrationFolder"].toString();
-    pathSampleFolder_ = settings_["pathSampleFolder"].toString();
-    pathTarFolder_ = settings_["pathTarFolder"].toString();
-    pathMCMIXFolder_ = settings_["pathMCMIXFolder"].toString();
+    std::string path;
+    path = (*settingsJson_)["pathCalibrationFolder"].is_string() ? (*settingsJson_)["pathCalibrationFolder"] : "";
+    pathCalibrationFolder_ = path.data();
+    path = (*settingsJson_)["pathSampleFolder"].is_string() ? (*settingsJson_)["pathSampleFolder"] : "";
+    pathSampleFolder_ = path.data();
+    path = (*settingsJson_)["pathTarFolder"].is_string() ? (*settingsJson_)["pathTarFolder"] : "";
+    pathTarFolder_ = path.data();
+    path = (*settingsJson_)["pathMCMIXFolder"].is_string() ? (*settingsJson_)["pathMCMIXFolder"] : "";
+    pathMCMIXFolder_ = path.data();
 }
 
 QStringList ExperimentsStorage::samples()
@@ -538,7 +542,7 @@ bool ExperimentsStorage::saveJsonFile(const QJsonObject &experimentInfo)
             qWarning("Couldn't open save file.");
             return false;
         }
-        dataJsonFile.write(jsonDoc.toJson());   
+        dataJsonFile.write(jsonDoc.toJson());
         dataJsonFile.close();
     }
 

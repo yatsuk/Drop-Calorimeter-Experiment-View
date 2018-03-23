@@ -1,8 +1,5 @@
 #include "mainwindow.h"
 #include <QApplication>
-#include <QJsonObject>
-#include <QDebug>
-
 
 int main(int argc, char *argv[])
 {
