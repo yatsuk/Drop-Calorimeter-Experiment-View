@@ -44,7 +44,6 @@ private:
     QJsonObject parametersExperimentFromFileInfo(const QString & fileName);
     void addExperimentIntoJsonStorageFile(QJsonObject *experiment);
     void readSettings();
-    bool validateFolder(const QString & infoFilePath, const QString & magicString);
     bool saveJsonFile(const QJsonObject &experimentInfo);
     bool saveJsonStorageToFile();
     bool loadJsonStorageFromFile();

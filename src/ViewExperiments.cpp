@@ -160,7 +160,7 @@ void ViewExperiments::showAllExperiments()
 {
     if (!ExperimentsStorage::isInited()) return;
     QJsonArray dropsArray;
-    for (auto drop : ExperimentsStorage::jsonStorageExperimentShortInfo_){
+    for (auto drop : ExperimentsStorage::jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject()){
         QString experimentType = drop.toObject()["experimentType"].toString();
         if (experimentType == "experiment" || experimentType == "calibration"){
             dropsArray.append(drop);
@@ -175,7 +175,7 @@ void ViewExperiments::showTarExperiments()
     if (!ExperimentsStorage::isInited()) return;
 
     QMap <int, QJsonArray> tarsMap;
-    for (auto experiment : ExperimentsStorage::jsonStorageExperimentShortInfo_){
+    for (auto experiment : ExperimentsStorage::jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject()){
         QString experimentType = experiment.toObject()["experimentType"].toString();
         if (experimentType == "tar"){
                 tarsMap[experiment.toObject()["series"].toInt()].append(experiment);

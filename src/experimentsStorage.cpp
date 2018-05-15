@@ -75,28 +75,6 @@ bool ExperimentsStorage::setPathMCMIXFolder(const QString & path)
     return true;
 }
 
-bool ExperimentsStorage::validateFolder(const QString & infoFilePath, const QString & magicString)
-{
-    QFile infoFile (infoFilePath);
-    if (!infoFile.open(QIODevice::ReadOnly | QIODevice::Text)){
-        return false;
-    }
-
-    bool validateFolder = false;
-    QTextStream in(&infoFile);
-    while (!in.atEnd()) {
-        QString line = in.readLine();
-        if (line.trimmed() == magicString)
-            validateFolder = true;
-    }
-
-    infoFile.close();
-
-    if (!validateFolder) return false;
-
-    return true;
-}
-
 void ExperimentsStorage::readSettings()
 {
     std::string path;
@@ -128,7 +106,7 @@ QJsonArray ExperimentsStorage::experiments(const QString & sampleName)
 {
     if (!isInited()) return QJsonArray();
     QJsonArray dropsArray;
-    for (auto drop : jsonStorageExperimentShortInfo_){
+    for (auto drop : jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject()){
         QString experimentType = drop.toObject()["experimentType"].toString();
         QString sample = drop.toObject()["sample"].toString();
         if (experimentType == "experiment" && sample == sampleName){
@@ -143,7 +121,7 @@ QJsonArray ExperimentsStorage::calibrations(const QString & ampoule)
 {
     if (!isInited()) return QJsonArray();
     QJsonArray dropsArray;
-    for (auto drop : jsonStorageExperimentShortInfo_){
+    for (auto drop : jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject()){
         QString experimentType = drop.toObject()["experimentType"].toString();
         QString ampoule_ = drop.toObject()["ampouleMaterial"].toString();
         if (experimentType == "calibration" && ampoule_ == ampoule){
@@ -160,6 +138,7 @@ bool ExperimentsStorage::init()
 
     QJsonArray experimentsJsonArray;
     QDir dir(pathSampleFolder_);
+    QStringList allExistingExperimentsPath;
     QStringList samplesDirs = dir.entryList(QDir::AllDirs | QDir::NoDotAndDotDot);
 
     for (auto &sample : samplesDirs){
@@ -169,6 +148,7 @@ bool ExperimentsStorage::init()
         QJsonArray dropsJsonArray;
         for (auto &item : experimentsDirs){
             QString experimentFolder(pathSampleFolder_ + QString("/") + sample + QString("/") + item);
+            allExistingExperimentsPath.append(experimentFolder);
             if(isExistExperimentInStorage(experimentFolder))continue;
 
             QJsonObject experimentInfo (parametersExperimentFromFileInfo(experimentFolder + QString("/info.txt")));
@@ -185,8 +165,8 @@ bool ExperimentsStorage::init()
 
             if (!dateRegExp.cap(1).isEmpty() && !dateRegExp.cap(2).isEmpty()){
                 dropsJsonArray.append(experimentInfo);
-                addExperimentIntoJsonStorageFile(&experimentInfo);
                 saveJsonFile(experimentInfo);
+                addExperimentIntoJsonStorageFile(&experimentInfo);
             }
         }
         dir.cdUp();
@@ -205,6 +185,7 @@ bool ExperimentsStorage::init()
         QJsonArray dropsJsonArray;
         for (auto &item : experimentsDirs){
             QString experimentFolder(pathCalibrationFolder_ + QString("/") + ampoule + QString("/") + item);
+            allExistingExperimentsPath.append(experimentFolder);
             if(isExistExperimentInStorage(experimentFolder))continue;
 
             QJsonObject experimentInfo (parametersExperimentFromFileInfo(experimentFolder + QString("/info.txt")));
@@ -221,8 +202,8 @@ bool ExperimentsStorage::init()
 
             if (!dateRegExp.cap(1).isEmpty() && !dateRegExp.cap(2).isEmpty()){
                 dropsJsonArray.append(experimentInfo);
-                addExperimentIntoJsonStorageFile(&experimentInfo);
                 saveJsonFile(experimentInfo);
+                addExperimentIntoJsonStorageFile(&experimentInfo);
             }
         }
         dir.cdUp();
@@ -236,6 +217,7 @@ bool ExperimentsStorage::init()
 
     for (auto &item : tarsDirs){
         QString experimentFolder(pathTarFolder_ + QString("/") + item);
+        allExistingExperimentsPath.append(experimentFolder);
         if(isExistExperimentInStorage(experimentFolder))continue;
 
         QJsonObject experimentInfo (parametersExperimentFromFileInfo(experimentFolder + QString("/info.txt")));
@@ -251,19 +233,46 @@ bool ExperimentsStorage::init()
         tarJsonArray.append(experimentInfo);
 
         if (!dateRegExp.cap(1).isEmpty() && !dateRegExp.cap(2).isEmpty()){
-            addExperimentIntoJsonStorageFile(&experimentInfo);
             saveJsonFile(experimentInfo);
+            addExperimentIntoJsonStorageFile(&experimentInfo);
         }
     }
 
     isInited_ = true;
+
+
+    QJsonObject shortExperimentsInfo = jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject();
+    QJsonObject experimentsPath = jsonStorageExperimentShortInfo_["Paths"].toObject();
+    for (auto path : jsonStorageExperimentShortInfo_["Paths"].toObject().keys()){
+        if(!allExistingExperimentsPath.contains(path)){
+            QString experimentId = experimentsPath[path].toString();
+            shortExperimentsInfo.remove(experimentId);
+            experimentsPath.remove(path);
+            qDebug() << "remove" <<path;
+        }
+
+    }
+
+    jsonStorageExperimentShortInfo_.remove("ShortExperimentsInfo");
+    jsonStorageExperimentShortInfo_["ShortExperimentsInfo"] = shortExperimentsInfo;
+    jsonStorageExperimentShortInfo_.remove("Paths");
+    jsonStorageExperimentShortInfo_["Paths"] = experimentsPath;
 
     return true;
 }
 
 void ExperimentsStorage::addExperimentIntoJsonStorageFile(QJsonObject *experiment)
 {
-    QFileInfo infoFileInfo((*experiment)["path"].toString() + "/info.txt");
+    qDebug() << "new" << (*experiment)["path"].toString();
+
+    QJsonObject files;
+    QFileInfo fileInfo;
+    QDir experimentDir((*experiment)["path"].toString());
+    QStringList filesList = experimentDir.entryList(QDir::Files);
+    for (auto &file : filesList){
+        fileInfo.setFile((*experiment)["path"].toString() + "/" + file);
+        files[file] = fileInfo.lastModified().toMSecsSinceEpoch()/1000;
+    }
 
     QJsonObject shortExperimentInfo;
     shortExperimentInfo["id"] = (*experiment)["id"];
@@ -271,7 +280,7 @@ void ExperimentsStorage::addExperimentIntoJsonStorageFile(QJsonObject *experimen
     shortExperimentInfo["experimentNumber"] = (*experiment)["experimentNumber"];
     shortExperimentInfo["path"] = (*experiment)["path"];
     shortExperimentInfo["experimentType"] = (*experiment)["experimentType"];
-    shortExperimentInfo["infoFileLastModified"] =  infoFileInfo.exists() ? infoFileInfo.lastModified().toMSecsSinceEpoch()/1000 : -1;
+    shortExperimentInfo["files"] = files;
 
     QString experimentType = shortExperimentInfo["experimentType"].toString();
     if (experimentType == "experiment" || experimentType == "calibration"){
@@ -291,24 +300,46 @@ void ExperimentsStorage::addExperimentIntoJsonStorageFile(QJsonObject *experimen
         shortExperimentInfo["deltaR"] = (*experiment)["deltaR"];
     }
 
-    jsonStorageExperimentShortInfo_[(*experiment)["id"].toString()] = shortExperimentInfo;
-    jsonStorageExperimentShortInfo_[(*experiment)["path"].toString()] = (*experiment)["id"].toString();
+    QJsonObject shortExperimentsInfo = jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject();
+    shortExperimentsInfo[(*experiment)["id"].toString()] = shortExperimentInfo;
+    jsonStorageExperimentShortInfo_.remove("ShortExperimentsInfo");
+    jsonStorageExperimentShortInfo_["ShortExperimentsInfo"] = shortExperimentsInfo;
+
+    QJsonObject paths = jsonStorageExperimentShortInfo_["Paths"].toObject();
+    paths[(*experiment)["path"].toString()] = (*experiment)["id"].toString();
+    jsonStorageExperimentShortInfo_.remove("Paths");
+    jsonStorageExperimentShortInfo_["Paths"] = paths;
 }
 
 bool ExperimentsStorage::isExistExperimentInStorage(const QString & path)
 {
     QFileInfo infoFileInfo;
-    QFile fileJson(path + "/data.json");
 
-    if (jsonStorageExperimentShortInfo_.contains(path)){
-        QString experimentId = jsonStorageExperimentShortInfo_[path].toString();
-        infoFileInfo.setFile(path + "/info.txt");
-        if (jsonStorageExperimentShortInfo_[experimentId].toObject()["infoFileLastModified"].toInt() ==
-                (infoFileInfo.exists() ? infoFileInfo.lastModified().toMSecsSinceEpoch()/1000 : -1) &&
-                fileJson.exists()){
-            return true;
+    QJsonObject experimentsPath = jsonStorageExperimentShortInfo_["Paths"].toObject();
+    QJsonObject shortExperimentsInfo = jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject();
+    if (experimentsPath.contains(path)){
+        QString experimentId = experimentsPath[path].toString();
+        QJsonObject filesObject = shortExperimentsInfo[experimentId].toObject()["files"].toObject();
+        QDir experimentDir(path);
+        for (auto fileName : experimentDir.entryList(QDir::Files)){
+            if(!filesObject.contains(fileName)){
+                shortExperimentsInfo.remove(experimentId);
+                jsonStorageExperimentShortInfo_.remove("ShortExperimentsInfo");
+                jsonStorageExperimentShortInfo_["ShortExperimentsInfo"] = shortExperimentsInfo;
+                return false;
+            }
         }
-        jsonStorageExperimentShortInfo_.remove(experimentId);
+
+        for (auto fileName : filesObject.keys()){
+            infoFileInfo.setFile(path + "/" + fileName);
+            if(filesObject[fileName].toInt() != (infoFileInfo.exists() ? infoFileInfo.lastModified().toMSecsSinceEpoch()/1000 : -1)){
+                shortExperimentsInfo.remove(experimentId);
+                jsonStorageExperimentShortInfo_.remove("ShortExperimentsInfo");
+                jsonStorageExperimentShortInfo_["ShortExperimentsInfo"] = shortExperimentsInfo;
+                return false;
+            }
+        }
+        return true;
     }
 
     return false;
@@ -316,7 +347,11 @@ bool ExperimentsStorage::isExistExperimentInStorage(const QString & path)
 
 bool ExperimentsStorage::saveJsonStorageToFile()
 {
-    QFile jsonStorageFile(pathMCMIXFolder_ + "/storage.json");
+    QDir storageDir(QDir::currentPath());
+    if(!storageDir.exists("storage"))
+        storageDir.mkdir("storage");
+
+    QFile jsonStorageFile("storage/MCMIX.json");
     jsonStorageFile.open(QIODevice::WriteOnly);
     QJsonDocument jsonDoc(jsonStorageExperimentShortInfo_);
     jsonStorageFile.write(jsonDoc.toJson());
@@ -328,8 +363,10 @@ bool ExperimentsStorage::saveJsonStorageToFile()
 
 bool ExperimentsStorage::loadJsonStorageFromFile()
 {
-    QFile jsonStorageFile(pathMCMIXFolder_ + "/storage.json");
-    if (!jsonStorageFile.exists())return false;
+    QFile jsonStorageFile("storage/MCMIX.json");
+    if (!jsonStorageFile.exists()){
+        return false;
+    }
 
     jsonStorageFile.open(QIODevice::ReadOnly);
 
@@ -566,8 +603,9 @@ bool ExperimentsStorage::addJsonObjectExperimentParametr(QJsonObject * parameter
 
 QString ExperimentsStorage::getFileInfoDirById(const QString & id)
 {
-    if (jsonStorageExperimentShortInfo_.contains(id)){
-        return jsonStorageExperimentShortInfo_[id].toObject()["path"].toString();
+    QJsonObject shortExperimentsInfo = jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject();
+    if (shortExperimentsInfo.contains(id)){
+        return shortExperimentsInfo[id].toObject()["path"].toString();
     }
     return "";
 }

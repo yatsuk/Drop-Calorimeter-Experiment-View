@@ -36,7 +36,7 @@ SOURCES += \
     src/extractDataWidget.cpp \
     src/experimentsStorage.cpp \
     src/experimentInfo.cpp \
-    src/allExperimentsTable.cpp
+    src/allExperimentsTable.cpp \
 
 HEADERS  += \
     src/ViewExperiments.h \
