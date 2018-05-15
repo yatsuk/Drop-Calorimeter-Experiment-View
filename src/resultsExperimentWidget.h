@@ -24,14 +24,14 @@ public slots:
 private slots:
     void newCalculateExperimentButtonClicked();
     void extractExperimentDataButtonClicked();
+    void openExperimentResult(QTableWidgetItem * item);
 
 private:
     void openExperimentJsonFile();
+    void fillExperimentTable();
 
     QString  currentExperimentId_;
     QPushButton * newCalculateExperimentButton_;
-    QPushButton * openCalculateExperimentButton_;
-    QPushButton * openMathcadFileButton_;
     QTableWidget * calculateExperimentTable_;
     QPushButton * extractExperimentDataButton_;
 

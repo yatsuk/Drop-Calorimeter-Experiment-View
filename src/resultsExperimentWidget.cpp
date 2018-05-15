@@ -6,27 +6,35 @@
 #include <QRegExp>
 #include <QDir>
 #include <QFileInfo>
-#include <QDebug>
+#include <QHeaderView>
 #include <QGroupBox>
 #include <fstream>
+#include <QDebug>
 
 ResultsExperimentWidget::ResultsExperimentWidget(QWidget *parent) : QWidget(parent)
 {
     QGroupBox * calculateExperimentGroupBox = new QGroupBox(tr("Расчёт эксперимента"));
 
     newCalculateExperimentButton_ = new QPushButton(tr("Новый расчёт"));
-    openCalculateExperimentButton_ = new QPushButton(tr("Открыть расчёт"));
-    openCalculateExperimentButton_->setDisabled(true);
-    openMathcadFileButton_ = new QPushButton(tr("Открыть файл Mathcad"));
-    openMathcadFileButton_->setDisabled(true);
-    QTableWidget * calculateExperimentTable_ = new QTableWidget;
-    calculateExperimentTable_->setColumnCount(3);
-    calculateExperimentTable_->hide();
+
+    QStringList tableHeader;
+    tableHeader <<  tr("Имя") << tr("Комментарий");
+    calculateExperimentTable_ = new QTableWidget;
+    calculateExperimentTable_->setColumnCount(2);
+    calculateExperimentTable_->setColumnWidth(0, 200);
+    calculateExperimentTable_->setColumnWidth(1, 400);
+    calculateExperimentTable_->setSortingEnabled(true);
+    calculateExperimentTable_->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    calculateExperimentTable_->setHorizontalHeaderLabels(tableHeader);
+    calculateExperimentTable_->verticalHeader()->setDefaultAlignment(Qt::AlignCenter);
+    calculateExperimentTable_->setFrameShape(QFrame::NoFrame);
+    calculateExperimentTable_->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
+    calculateExperimentTable_->setSelectionMode(QAbstractItemView::NoSelection);
+    calculateExperimentTable_->horizontalHeader()->setHighlightSections(false);
+    calculateExperimentTable_->installEventFilter(this);
 
     QHBoxLayout * horLayoutcalculateExperimentGroupBox = new QHBoxLayout;
     horLayoutcalculateExperimentGroupBox->addWidget(newCalculateExperimentButton_);
-    horLayoutcalculateExperimentGroupBox->addWidget(openCalculateExperimentButton_);
-    horLayoutcalculateExperimentGroupBox->addWidget(openMathcadFileButton_);
     QVBoxLayout * layoutcalculateExperimentGroupBox = new QVBoxLayout;
     layoutcalculateExperimentGroupBox->addLayout(horLayoutcalculateExperimentGroupBox);
     layoutcalculateExperimentGroupBox->addWidget(calculateExperimentTable_);
@@ -44,6 +52,9 @@ ResultsExperimentWidget::ResultsExperimentWidget(QWidget *parent) : QWidget(pare
             this, &ResultsExperimentWidget::newCalculateExperimentButtonClicked);
     connect(extractExperimentDataButton_, &QPushButton::clicked,
             this, &ResultsExperimentWidget::extractExperimentDataButtonClicked);
+
+    connect(calculateExperimentTable_, &QTableWidget::itemDoubleClicked,
+            this, &ResultsExperimentWidget::openExperimentResult);
 }
 
 void ResultsExperimentWidget::newCalculateExperimentButtonClicked()
@@ -82,17 +93,45 @@ void ResultsExperimentWidget::setCurrenExperiment(const QString & experimentId)
 {
     currentExperimentId_ = experimentId;
     openExperimentJsonFile();
+    fillExperimentTable();
 }
 
 void ResultsExperimentWidget::openExperimentJsonFile()
 {
-    ExperimentsStorage ExperimentsStorage;
+    ExperimentsStorage experimentsStorage;
     json experimentJson;
-    std::ifstream file(ExperimentsStorage.getFileInfoDirById(currentExperimentId_).toStdString() + "/data.json");
+    std::ifstream file(experimentsStorage.getFileInfoDirById(currentExperimentId_).toStdString() + "/data.json");
     if(file.is_open()){
         file >> experimentJson;
         file.close();
     }
+}
 
+void ResultsExperimentWidget::fillExperimentTable()
+{
+    ExperimentsStorage experimentsStorage;
+    QDir dir(experimentsStorage.getFileInfoDirById(currentExperimentId_));
+    QStringList resultsList = dir.entryList(QStringList() << "*.mcd", QDir::Files);
+    if(resultsList.size() == 0){
+        calculateExperimentTable_->hide();
+    } else {
+        calculateExperimentTable_->show();
+        calculateExperimentTable_->setRowCount(resultsList.size());
+    }
 
+    for (int i = 0; i < resultsList.size(); ++i){
+        QTableWidgetItem * item =new QTableWidgetItem(resultsList.at(i));
+        item->setTextAlignment(Qt::AlignCenter);
+        item->setData(Qt::UserRole, "Mathcad_calculation");
+        calculateExperimentTable_->setItem(i,0,item);
+    }
+
+}
+
+void ResultsExperimentWidget::openExperimentResult(QTableWidgetItem * item)
+{
+    if(item->data(Qt::UserRole).toString() == "Mathcad_calculation"){
+        ExperimentsStorage experimentsStorage;
+        qDebug() << (experimentsStorage.getFileInfoDirById(currentExperimentId_) + "/"+  item->text());
+    }
 }
