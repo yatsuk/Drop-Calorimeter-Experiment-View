@@ -28,6 +28,7 @@ MainWindow::MainWindow(QWidget *parent)
     experimentInfo =  new ExperimentInfo;
     experimentInfo->setSettings(&settingsJson_["GUI"]["ExperimentInfo"]);
     resultsExperimentWidget = new ResultsExperimentWidget;
+    resultsExperimentWidget->setSettings(&settingsJson_["GUI"]["ResultsExperiment"]);
 
     fotoView = new FotoView;
     fotoView->setSettings(&settingsJson_["GUI"]["FotoView"]);

@@ -128,6 +128,7 @@ void TarExperimentTable::addExperiments(QMap <int, QJsonArray> tarMap)
         table->sortByColumn(0, Qt::AscendingOrder);
         table->setCurrentCell(i - 1, 0);
         table->clearSelection();
+        table->setColumnWidth(1, 30);
 
         QString dateFrom = table->item(0, 0)->text();
         QString dateTo = table->item(i - 1, 0)->text();

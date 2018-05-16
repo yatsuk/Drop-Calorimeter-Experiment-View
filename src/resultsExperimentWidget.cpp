@@ -9,6 +9,7 @@
 #include <QHeaderView>
 #include <QGroupBox>
 #include <fstream>
+#include <QProcess>
 #include <QDebug>
 
 ResultsExperimentWidget::ResultsExperimentWidget(QWidget *parent) : QWidget(parent)
@@ -31,7 +32,7 @@ ResultsExperimentWidget::ResultsExperimentWidget(QWidget *parent) : QWidget(pare
     calculateExperimentTable_->setSizeAdjustPolicy(QAbstractScrollArea::AdjustToContents);
     calculateExperimentTable_->setSelectionMode(QAbstractItemView::NoSelection);
     calculateExperimentTable_->horizontalHeader()->setHighlightSections(false);
-    calculateExperimentTable_->installEventFilter(this);
+    calculateExperimentTable_->horizontalHeader()->setStretchLastSection(true);
 
     QHBoxLayout * horLayoutcalculateExperimentGroupBox = new QHBoxLayout;
     horLayoutcalculateExperimentGroupBox->addWidget(newCalculateExperimentButton_);
@@ -55,6 +56,11 @@ ResultsExperimentWidget::ResultsExperimentWidget(QWidget *parent) : QWidget(pare
 
     connect(calculateExperimentTable_, &QTableWidget::itemDoubleClicked,
             this, &ResultsExperimentWidget::openExperimentResult);
+}
+
+void ResultsExperimentWidget::setSettings(json *settingsJson)
+{
+    settingsJson_ = settingsJson;
 }
 
 void ResultsExperimentWidget::newCalculateExperimentButtonClicked()
@@ -116,6 +122,7 @@ void ResultsExperimentWidget::fillExperimentTable()
         calculateExperimentTable_->hide();
     } else {
         calculateExperimentTable_->show();
+        calculateExperimentTable_->setColumnWidth(0, 200);
         calculateExperimentTable_->setRowCount(resultsList.size());
     }
 
@@ -132,6 +139,9 @@ void ResultsExperimentWidget::openExperimentResult(QTableWidgetItem * item)
 {
     if(item->data(Qt::UserRole).toString() == "Mathcad_calculation"){
         ExperimentsStorage experimentsStorage;
-        qDebug() << (experimentsStorage.getFileInfoDirById(currentExperimentId_) + "/"+  item->text());
+        std::string mathcadPath = (*settingsJson_)["mathcadPath"].is_string() ? (*settingsJson_)["mathcadPath"] : "";
+
+        QProcess * mathcad = new QProcess(this);
+        mathcad->start(mathcadPath.c_str(), QStringList() << (experimentsStorage.getFileInfoDirById(currentExperimentId_) + "/"+  item->text()));
     }
 }

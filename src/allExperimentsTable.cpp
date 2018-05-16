@@ -88,6 +88,7 @@ void AllExperimentsTable::addAllExperiments(const QJsonArray & dropsArray)
     experimentsTable_->resizeRowsToContents();
     experimentsTable_->setCurrentCell(i - 1, 0);
     experimentsTable_->clearSelection();
+    experimentsTable_->setColumnWidth(1, 30);
 }
 
 void AllExperimentsTable::experimentSelected(QTableWidgetItem * item)

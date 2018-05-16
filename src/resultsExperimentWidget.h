@@ -20,6 +20,7 @@ signals:
 
 public slots:
     void setCurrenExperiment(const QString &experimentId);
+    void setSettings(json * settingsJson);
 
 private slots:
     void newCalculateExperimentButtonClicked();
@@ -36,6 +37,7 @@ private:
     QPushButton * extractExperimentDataButton_;
 
     int calcCount_;
+    json * settingsJson_;
 };
 
 #endif // RESULTSEXPERIMENTWIDGET_H

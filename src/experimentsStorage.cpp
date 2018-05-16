@@ -333,6 +333,7 @@ bool ExperimentsStorage::isExistExperimentInStorage(const QString & path)
         for (auto fileName : filesObject.keys()){
             infoFileInfo.setFile(path + "/" + fileName);
             if(filesObject[fileName].toInt() != (infoFileInfo.exists() ? infoFileInfo.lastModified().toMSecsSinceEpoch()/1000 : -1)){
+                if(fileName=="data.json")continue;
                 shortExperimentsInfo.remove(experimentId);
                 jsonStorageExperimentShortInfo_.remove("ShortExperimentsInfo");
                 jsonStorageExperimentShortInfo_["ShortExperimentsInfo"] = shortExperimentsInfo;

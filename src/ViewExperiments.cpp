@@ -151,6 +151,7 @@ void ViewExperiments::addExperiments(const QString & sampleName,const QJsonArray
                 table->sortByColumn(0, Qt::AscendingOrder);
                 table->setCurrentCell(i - 1, 0);
                 table->clearSelection();
+                table->setColumnWidth(1, 30);
             }
         }
     }
@@ -178,7 +179,7 @@ void ViewExperiments::showTarExperiments()
     for (auto experiment : ExperimentsStorage::jsonStorageExperimentShortInfo_["ShortExperimentsInfo"].toObject()){
         QString experimentType = experiment.toObject()["experimentType"].toString();
         if (experimentType == "tar"){
-                tarsMap[experiment.toObject()["series"].toInt()].append(experiment);
+            tarsMap[experiment.toObject()["series"].toInt()].append(experiment);
         }
     }
 
